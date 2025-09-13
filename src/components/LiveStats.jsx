@@ -1,312 +1,477 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+// src/components/LiveStats.jsx
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import { motion, AnimatePresence, useReducedMotion, animate } from 'framer-motion';
 import api, { endpoints } from '../api/client';
 
-/* ────────── styles ────────── */
-const Wrap = styled.section`
-  margin: 12px 0 24px;
+/* ────────── Styled Components ────────── */
+const Container = styled.section`
+  margin: 48px 0;
+  padding: 32px;
+  background: ${({ theme }) => theme.colors.surface};
+  border-radius: ${({ theme }) => theme.radii.xl};
+  border: 1px solid ${({ theme }) => theme.colors.line};
+  position: relative;
+  overflow: hidden;
+  box-shadow: ${({ theme }) => theme.shadows.card};
+
+  @media (max-width: 640px) {
+    padding: 24px 16px;
+    margin: 32px 0;
+  }
+
+  /* subtle corner glow */
+  &::after{
+    content:''; position:absolute; right:-20%; top:-40%;
+    width: 60%; height: 120%;
+    background: radial-gradient(40% 40% at 50% 50%, rgba(245,188,0,.12), transparent 70%);
+    pointer-events:none;
+  }
 `;
 
-const TopRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 8px;
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 640px) { flex-direction: column; }
+`;
+
+const TitleGroup = styled.div`
+  display: flex; align-items: center; gap: 10px;
 `;
 
 const Title = styled.h3`
   margin: 0;
-  font-size: 16px;
-  letter-spacing: 0.2px;
-  color: ${({ theme }) => theme.colors.subtext};
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const Dot = styled.span`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${({ ok }) => (ok ? '#5dd39e' : '#94a3ad')};
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .05);
-`;
-
-const Meta = styled.div`
-  display: inline-grid;
-  grid-auto-flow: column;
-  gap: 10px;
-  align-items: center;
-  justify-content: end;
-  @media (max-width: 720px) { justify-content: start; }
-`;
-
-const Chip = styled.button`
-  background: rgba(255,255,255,0.06);
-  border: 1px solid ${({ theme }) => theme.colors.line};
+  font-size: 1.25rem;
+  font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background .2s ease, border-color .2s ease, transform .1s ease;
-  &:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
+  letter-spacing: -0.02em;
 `;
 
-const Muted = styled.span`
-  font-size: 12px;
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+`;
+
+const StatusIndicator = styled.span`
+  display: inline-flex; align-items:center; justify-content:center;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: ${({ $status, theme }) => {
+    switch($status) {
+      case 'synced': return theme.colors.success || '#5dd39e';
+      case 'error': return theme.colors.error || '#ff6b6b';
+      case 'loading': return theme.colors.accent;
+      default: return theme.colors.subtext;
+    }
+  }};
+  box-shadow: 0 0 0 4px ${({ $status, theme }) => {
+    switch($status) {
+      case 'synced': return (theme.colors.successBg || 'rgba(93,211,158,0.12)');
+      case 'error': return (theme.colors.errorBg || 'rgba(255,107,107,0.12)');
+      default: return 'rgba(255,255,255,0.06)';
+    }
+  }};
+  ${({ $animated }) => $animated && css`animation: ${pulse} 2s ease-in-out infinite;`}
+`;
+
+const Controls = styled.div`
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+`;
+
+const UpdateInfo = styled.span`
+  font-size: 0.875rem;
   color: ${({ theme }) => theme.colors.subtext};
+  display: flex; align-items: center; gap: 6px;
 `;
 
-const Strip = styled.div`
+const Button = styled.button`
+  padding: 8px 16px;
+  background: ${({ $variant, theme }) =>
+    $variant === 'primary' ? theme.colors.accent : 'transparent'};
+  color: ${({ $variant, theme }) =>
+    $variant === 'primary' ? (theme.colors.primaryFg || '#0b2230') : theme.colors.text};
+  border: 1px solid ${({ $variant, theme }) =>
+    $variant === 'primary' ? theme.colors.accent : theme.colors.line};
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-size: 0.875rem; font-weight: 700; cursor: pointer;
+  transition: transform .12s ease, background .2s ease, box-shadow .2s ease;
+  display: inline-flex; align-items: center; gap: 6px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: ${({ $variant, theme }) =>
+      $variant === 'primary' ? theme.colors.accentDark : theme.colors.surfaceHover};
+    box-shadow: ${({ theme }) => theme.shadows.subtle};
+  }
+  &:disabled { opacity: .55; cursor: not-allowed; }
+  &:active:not(:disabled) { transform: translateY(0); }
+`;
+
+const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  @media (max-width: 720px){ grid-template-columns: repeat(2, 1fr); }
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
-const Card = styled(motion.div)`
-  background: rgba(255,255,255,0.04);
-  border: 1px solid ${({theme})=> theme.colors.line };
-  border-radius: 16px;
-  padding: 14px 16px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+const StatCard = styled(motion.div)`
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ $highlight, theme }) => $highlight ? theme.colors.accent : theme.colors.line};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+
+  /* top colored bar per type */
+  &::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: ${({ $type, theme }) => {
+      switch($type) {
+        case 'total':  return theme.colors.accent;
+        case 'blitz':  return theme.colors.info || '#64b5f6';
+        case 'ignite': return theme.colors.warning || '#ffb347';
+        case 'both':   return '#9575cd';
+        default:       return theme.colors.line;
+      }
+    }};
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadows.cardHover};
+  }
 `;
 
-const BigRow = styled.div`
-  display: grid;
-  justify-items: center;
-  gap: 6px;
+const StatContent = styled.div`
+  display: flex; flex-direction: column; gap: 8px;
 `;
 
-const Big = styled.div`
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  line-height: 1;
+const StatValue = styled.div`
+  font-size: 2rem; font-weight: 900; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  color: ${({ theme }) => theme.colors.text};
+
+  @media (max-width: 640px) { font-size: 1.75rem; }
 `;
 
-const Label = styled.div`
-  font-size: 12px;
-  color: ${({theme})=> theme.colors.subtext};
+const StatLabel = styled.div`
+  font-size: 0.875rem; color: ${({ theme }) => theme.colors.subtext}; font-weight: 600;
 `;
 
-const Delta = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: ${({dir}) => dir >= 0 ? '#0b3324' : '#3a0b0b'};
-  background: ${({dir}) => dir >= 0 ? 'rgba(93,211,158,.25)' : 'rgba(255,107,107,.25)'};
-  border: 1px solid ${({dir}) => dir >= 0 ? 'rgba(93,211,158,.45)' : 'rgba(255,107,107,.45)'};
+const StatChange = styled(motion.div)`
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.75rem; font-weight: 800; margin-top: 4px;
+  padding: 4px 8px; border-radius: 999px;
+
+  color: ${({ $positive, theme }) => $positive ? (theme.colors.successFg || '#77e2b4') : (theme.colors.errorFg || '#ff9b9b')};
+  background: ${({ $positive, theme }) => $positive ? (theme.colors.successBg || 'rgba(93,211,158,0.12)') : (theme.colors.errorBg || 'rgba(255,107,107,0.12)')};
+  border: 1px solid ${({ $positive, theme }) => $positive ? (theme.colors.successBorder || 'rgba(93,211,158,0.45)') : (theme.colors.errorBorder || 'rgba(255,107,107,0.45)')};
 `;
 
 const shimmer = keyframes`
-  0%{ background-position: -200% 0; } 100%{ background-position: 200% 0; }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 `;
 
-const Skeleton = styled.div`
-  width: 100%;
-  height: 46px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+const SkeletonLoader = styled.div`
+  height: ${({ $height }) => $height || '40px'};
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    ${({ theme }) => theme.colors.backgroundAlt} 25%,
+    ${({ theme }) => theme.colors.surface} 50%,
+    ${({ theme }) => theme.colors.backgroundAlt} 75%
+  );
   background-size: 200% 100%;
-  animation: ${shimmer} 1.2s ease-in-out infinite;
+  animation: ${shimmer} 1.5s ease-in-out infinite;
 `;
 
-/* tiny sparkline for Total */
-const Sparkline = ({ points = [], width = 80, height = 28, accent = '#f5bc00' }) => {
-  if (!points.length) return null;
+const ErrorMessage = styled.div`
+  padding: 12px 16px;
+  background: ${({ theme }) => theme.colors.errorBg || 'rgba(255, 107, 107, 0.12)'};
+  border: 1px solid ${({ theme }) => theme.colors.errorBorder || 'rgba(255, 107, 107, 0.45)'};
+  border-radius: ${({ theme }) => theme.radii.md};
+  color: ${({ theme }) => theme.colors.error || '#ff6b6b'};
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+`;
+
+const SuccessMessage = styled(motion.div)`
+  padding: 12px 16px;
+  background: ${({ theme }) => theme.colors.successBg || 'rgba(93,211,158,0.12)'};
+  border: 1px solid ${({ theme }) => theme.colors.successBorder || 'rgba(93,211,158,0.45)'};
+  border-radius: ${({ theme }) => theme.radii.md};
+  color: ${({ theme }) => theme.colors.successFg || '#77e2b4'};
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+`;
+
+/* ────────── Sparkline Component ────────── */
+const SparklineContainer = styled.div`
+  position: absolute; bottom: 16px; right: 16px;
+  opacity: 0.65; transition: opacity .2s ease;
+  ${StatCard}:hover & { opacity: 0.95; }
+`;
+
+const Sparkline = ({ points = [], width = 80, height = 32 }) => {
+  if (points.length < 2) return null;
+
   const min = Math.min(...points);
   const max = Math.max(...points);
-  const span = Math.max(1, max - min);
-  const step = points.length > 1 ? width / (points.length - 1) : width;
+  const range = max - min || 1;
 
-  const d = points
-    .map((v, i) => {
-      const x = i * step;
-      const y = height - ((v - min) / span) * height;
-      return `${i ? 'L' : 'M'}${x},${y}`;
+  const pathData = points
+    .map((value, i) => {
+      const x = (i / (points.length - 1)) * width;
+      const y = height - ((value - min) / range) * height;
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
     })
     .join(' ');
 
+  const areaData = `${pathData} L ${width} ${height} L 0 ${height} Z`;
+
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: 'absolute', right: 8, bottom: 8, opacity: .8 }}>
-      <path d={d} fill="none" stroke={accent} strokeWidth="2" />
-      <circle cx={ (points.length-1) * step } cy={ height - ((points[points.length-1]-min)/span)*height } r="2.5" fill={accent} />
-    </svg>
+    <SparklineContainer aria-hidden>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f5bc00" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#f5bc00" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaData} fill="url(#sparkGradient)" />
+        <path d={pathData} fill="none" stroke="#f5bc00" strokeWidth="2" />
+        <circle
+          cx={width}
+          cy={height - ((points[points.length - 1] - min) / range) * height}
+          r="3"
+          fill="#f5bc00"
+        />
+      </svg>
+    </SparklineContainer>
   );
 };
 
-/* format “Updated 25s ago” */
-function useRelativeTicker(targetMs) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const diff = Math.max(0, Math.floor((now - (targetMs || now)) / 1000));
-  if (!targetMs) return '—';
-  if (diff < 1) return 'just now';
-  if (diff < 60) return `${diff}s ago`;
-  const m = Math.floor(diff / 60);
-  return `${m}m ago`;
-}
+/* ────────── Helper Functions ────────── */
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Never';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 5) return 'Just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
 
-/* animated count helper */
-function AnimatedCount({ value }) {
-  const reduced = useReducedMotion();
-  const [display, setDisplay] = useState(value);
-  const latest = useRef(value);
+/* ────────── Animated Counter ────────── */
+function AnimatedCount({ value, format = true }) {
+  const reducedMotion = useReducedMotion();
+  const [displayValue, setDisplayValue] = useState(value);
+  const previousValue = useRef(value);
 
   useEffect(() => {
-    if (reduced) { setDisplay(value); return; }
-    const controls = animate(latest.current, value, {
+    if (reducedMotion || value === previousValue.current) {
+      setDisplayValue(value);
+      return;
+    }
+    const controls = animate(previousValue.current, value, {
       duration: 0.5,
-      onUpdate: (v) => setDisplay(Math.round(v)),
       ease: 'easeOut',
+      onUpdate: (v) => setDisplayValue(Math.round(v)),
     });
-    latest.current = value;
+    previousValue.current = value;
     return () => controls.stop();
-  }, [value, reduced]);
+  }, [value, reducedMotion]);
 
-  return <span>{Number(display).toLocaleString('en-IN')}</span>;
+  const formatted = format ? displayValue.toLocaleString('en-IN') : String(displayValue);
+  return <span>{formatted}</span>;
 }
 
-/* ────────── component ────────── */
+/* ────────── Main Component ────────── */
 export default function LiveStats() {
-  const [data, setData] = useState({ total: 0, blitz: 0, ignite: 0, both: 0 });
-  const [prev, setPrev] = useState(null);
+  const [stats, setStats] = useState({ total: 0, blitz: 0, ignite: 0, both: 0 });
+  const [previousStats, setPreviousStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [paused, setPaused] = useState(false);
-  const [synced, setSynced] = useState(false);
-  const [lastUpdatedMs, setLastUpdatedMs] = useState(null);
   const [error, setError] = useState(null);
-  const [seriesTotal, setSeriesTotal] = useState([]); // for sparkline
+  const [synced, setSynced] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const ago = useRelativeTicker(lastUpdatedMs);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setError(null);
-      const res = await api.get(endpoints.statsLive);  // GET /stats/live-count
-      const body = res.data?.data;
-      if (body) {
-        setPrev(data);
-        setData(body);
-        setSeriesTotal((s) => {
-          const next = [...s, Number(body.total || 0)];
-          return next.slice(-30); // keep last 30 points
-        });
+      const response = await api.get(endpoints.statsLive);
+
+      if (response.data?.data) {
+        setPreviousStats(stats);
+        setStats(response.data.data);
+        setHistory((prev) => [...prev.slice(-29), response.data.data.total || 0]);
+
+        const serverDate = response.headers?.date || response.headers?.Date;
+        if (serverDate) {
+          setSynced(true);
+          setLastUpdated(new Date(serverDate).getTime());
+        } else {
+          setSynced(false);
+          setLastUpdated(Date.now());
+        }
+
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 1800);
       }
-      const serverDate = res.headers?.date || res.headers?.Date;
-      if (serverDate) { setSynced(true); setLastUpdatedMs(new Date(serverDate).getTime()); }
-      else { setSynced(false); setLastUpdatedMs(Date.now()); }
-    } catch (e) {
-      setError('Could not fetch stats');
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+      setError('Unable to load registration data');
+      setSynced(false);
     } finally {
       setLoading(false);
     }
-  };
+  }, [stats]);
 
   useEffect(() => {
     fetchStats();
-    const id = setInterval(() => { if (!paused) fetchStats(); }, 30000); // every 30s
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused]);
+    if (autoRefresh) {
+      const interval = setInterval(fetchStats, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh, fetchStats]);
 
   const deltas = useMemo(() => {
-    if (!prev) return { total: 0, blitz: 0, ignite: 0, both: 0 };
+    if (!previousStats) return {};
     return {
-      total: (data.total ?? 0) - (prev.total ?? 0),
-      blitz: (data.blitz ?? 0) - (prev.blitz ?? 0),
-      ignite: (data.ignite ?? 0) - (prev.ignite ?? 0),
-      both: (data.both ?? 0) - (prev.both ?? 0),
+      total:  (stats.total  || 0) - (previousStats.total  || 0),
+      blitz:  (stats.blitz  || 0) - (previousStats.blitz  || 0),
+      ignite: (stats.ignite || 0) - (previousStats.ignite || 0),
+      both:   (stats.both   || 0) - (previousStats.both   || 0),
     };
-  }, [data, prev]);
+  }, [stats, previousStats]);
 
-  const cards = [
-    { key: 'total',  label: 'Total Confirmed' },
-    { key: 'blitz',  label: 'ScaleUp Blitz'  },
-    { key: 'ignite', label: 'ScaleUp Ignite' },
-    { key: 'both',   label: 'Both'           },
+  const statsConfig = [
+    { key: 'total',  label: 'Total Registrations', type: 'total' },
+    { key: 'blitz',  label: 'ScaleUp Blitz',       type: 'blitz' },
+    { key: 'ignite', label: 'ScaleUp Ignite',      type: 'ignite' },
+    { key: 'both',   label: 'Both Events',         type: 'both' },
   ];
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    await fetchStats();
+  };
+
+  const getStatusIndicator = () => {
+    if (loading) return 'loading';
+    if (error)   return 'error';
+    if (synced)  return 'synced';
+    return 'default';
+    };
+
   return (
-    <Wrap>
-      <TopRow>
-        <Title><Dot ok={synced} /> Live registrations</Title>
-        <Meta>
-          <Muted>Updated {ago}</Muted>
-          <Chip onClick={() => { setPaused(p => !p); }}>{paused ? 'Auto-refresh: Off' : 'Auto-refresh: On'}</Chip>
-          <Chip onClick={fetchStats}>Refresh now</Chip>
-        </Meta>
-      </TopRow>
+    <Container aria-live="polite">
+      <Header>
+        <TitleGroup>
+          <StatusIndicator
+            $status={getStatusIndicator()}
+            $animated={loading}
+            aria-label={`Status: ${getStatusIndicator()}`}
+          />
+          <Title>Live Registration Stats</Title>
+        </TitleGroup>
+
+        <Controls>
+          <UpdateInfo>
+            <span>Updated {formatRelativeTime(lastUpdated)}</span>
+          </UpdateInfo>
+          <Button
+            $variant={autoRefresh ? 'default' : 'primary'}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            aria-pressed={autoRefresh}
+          >
+            {autoRefresh ? '⏸ Pause' : '▶ Resume'}
+          </Button>
+          <Button onClick={handleRefresh} disabled={loading} aria-label="Refresh statistics">
+            {loading ? '⟳ Loading…' : '⟳ Refresh'}
+          </Button>
+        </Controls>
+      </Header>
+
+      <AnimatePresence>
+        {showSuccess && (
+          <SuccessMessage
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            ✓ Statistics updated successfully
+          </SuccessMessage>
+        )}
+      </AnimatePresence>
 
       {error && (
-        <div style={{ marginBottom: 8, fontSize: 12, color: '#ff9b9b' }}>
-          {error} — try again.
-        </div>
+        <ErrorMessage role="alert">
+          <span>⚠ {error}</span>
+          <Button onClick={handleRefresh} $variant="primary">Try Again</Button>
+        </ErrorMessage>
       )}
 
-      <Strip>
-        {cards.map((c) => {
-          const value = Number(data[c.key] || 0);
-          const delta = Number(deltas[c.key] || 0);
-          const showDelta = !loading && delta !== 0;
+      <StatsGrid>
+        {statsConfig.map(({ key, label, type }) => {
+          const value = stats[key] || 0;
+          const delta = deltas[key] || 0;
+          const showDelta = !loading && delta !== 0 && previousStats;
 
           return (
-            <Card
-              key={c.key}
+            <StatCard
+              key={key}
+              $type={type}
+              $highlight={delta > 0}
               initial={false}
-              animate={{ scale: delta > 0 ? 1.02 : 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 16, mass: 0.6 }}
+              animate={{ scale: delta > 0 ? [1, 1.02, 1] : 1 }}
+              transition={{ duration: 0.25 }}
             >
               {loading ? (
-                <Skeleton />
+                <StatContent>
+                  <SkeletonLoader $height="36px" />
+                  <SkeletonLoader $height="20px" />
+                </StatContent>
               ) : (
-                <BigRow>
-                  <Big><AnimatedCount value={value} /></Big>
-                  <Label>{c.label}</Label>
+                <StatContent>
+                  <StatValue><AnimatedCount value={value} /></StatValue>
+                  <StatLabel>{label}</StatLabel>
+
                   <AnimatePresence>
                     {showDelta && (
-                      <motion.div
-                        key={`d-${c.key}-${value}`}
-                        initial={{ y: 8, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -8, opacity: 0 }}
-                        transition={{ duration: 0.25 }}
+                      <StatChange
+                        $positive={delta > 0}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
                       >
-                        <Delta dir={delta}>
-                          {delta > 0 ? '▲' : '▼'} {delta > 0 ? `+${delta}` : delta}
-                        </Delta>
-                      </motion.div>
+                        <span>{delta > 0 ? '↑' : '↓'}</span>
+                        <span>{Math.abs(delta)}</span>
+                      </StatChange>
                     )}
                   </AnimatePresence>
-                </BigRow>
+                </StatContent>
               )}
 
-              {/* Tiny sparkline on Total */}
-              {c.key === 'total' && !loading && seriesTotal.length > 1 && (
-                <Sparkline points={seriesTotal} />
+              {key === 'total' && history.length > 1 && !loading && (
+                <Sparkline points={history} />
               )}
-            </Card>
+            </StatCard>
           );
         })}
-      </Strip>
-    </Wrap>
+      </StatsGrid>
+    </Container>
   );
 }

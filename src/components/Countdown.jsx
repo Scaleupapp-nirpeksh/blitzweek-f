@@ -1,411 +1,645 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+// src/components/Countdown.jsx
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { differenceInSeconds, addHours } from 'date-fns';
+import { differenceInSeconds, addHours, format } from 'date-fns';
 import confetti from 'canvas-confetti';
 
-/* ============== Polished styles ============== */
-const Wrap = styled.section`
-  padding: 28px 0 18px;
-  border-top: 1px dashed ${({ theme }) => theme.colors.line};
-  border-bottom: 1px dashed ${({ theme }) => theme.colors.line};
-  margin: 32px 0 18px;
+/* ============== Styled Components ============== */
+const Container = styled.section`
+  padding: 48px 0;
+  margin: 48px 0;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 2px;
+    background: ${({ theme }) => theme.colors.accent};
+    opacity: 0.5;
+  }
 `;
 
-const TopRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 14px;
-  @media (max-width: 720px) { grid-template-columns: 1fr; }
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: 32px;
 `;
 
-const Title = styled.h3`
-  margin: 0;
-  font-size: 18px;
-  letter-spacing: .2px;
-  color: ${({ theme }) => theme.colors.subtext};
+const StatusBadge = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-`;
-
-const SyncDot = styled.span`
-  width: 8px; height: 8px; border-radius: 50%;
-  background: ${({ ok }) => (ok ? '#5dd39e' : '#94a3ad')};
-  box-shadow: 0 0 0 3px rgba(255,255,255,.05);
-`;
-
-const Meta = styled.div`
-  display: inline-grid;
-  grid-auto-flow: column;
-  gap: 10px;
-  align-items: center;
-  justify-content: end;
-  @media (max-width: 720px) { justify-content: start; }
-`;
-
-const Chip = styled.button`
-  background: #0f3a4b;
-  border: 1px solid ${({ theme }) => theme.colors.line};
-  color: ${({ theme }) => theme.colors.text};
+  gap: 8px;
+  padding: 8px 16px;
+  background: ${({ $status, theme }) => {
+    if ($status === 'live') return `${theme.colors.accent}20`;
+    if ($status === 'ended') return `${theme.colors.subtext}20`;
+    return 'transparent';
+  }};
+  border: 1px solid ${({ $status, theme }) => {
+    if ($status === 'live') return theme.colors.accent;
+    if ($status === 'ended') return theme.colors.subtext;
+    return theme.colors.line;
+  }};
   border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  line-height: 1;
-  transition: background .2s ease, border-color .2s ease, transform .1s ease;
-  &:hover { background: #0f4154; border-color: rgba(255,255,255,.18); transform: translateY(-1px); }
+  margin-bottom: 16px;
 `;
 
-const Row = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 18px;
-  justify-items: center;
-  @media (max-width: 900px) { grid-template-columns: repeat(4, minmax(130px, 1fr)); }
-  @media (max-width: 720px) { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
 `;
 
-const Box = styled.div`
-  width: 100%;
-  max-width: 260px;
-  height: 140px;
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-  border: 1px solid ${({ theme }) => theme.colors.line};
-  border-radius: 20px;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  align-items: center;
-  justify-items: center;
-  position: relative;
-  overflow: hidden;
-  box-shadow: ${({ theme }) => theme.shadows.card};
+const StatusDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${({ $status, theme }) => {
+    if ($status === 'live') return theme.colors.accent;
+    if ($status === 'synced') return '#5dd39e';
+    return theme.colors.subtext;
+  }};
+  ${({ $animated }) => $animated && css`
+    animation: ${pulse} 2s ease-in-out infinite;
+  `}
 `;
 
-const Gauge = styled.div`
-  position: relative;
-  width: 96px; height: 96px;
-  display: grid; place-items: center;
+const Title = styled.h2`
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: ${({ theme }) => theme.colors.text};
+  
+  ${({ $status, theme }) => $status === 'live' && css`
+    background: ${theme.colors.gradientGold || `linear-gradient(90deg, ${theme.colors.accent}, ${theme.colors.accentDark})`};
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  `}
 `;
 
-const Label = styled.div`
-  font-size: 12px;
+const Subtitle = styled.p`
+  font-size: 1rem;
   color: ${({ theme }) => theme.colors.subtext};
-  margin-bottom: 10px;
+  margin: 0;
 `;
 
-const Actions = styled.div`
-  display: flex; gap: 10px; margin-top: 14px;
-  justify-content: center; flex-wrap: wrap;
-`;
-
-const CTA = styled.a`
-  display:inline-flex; align-items:center; gap:8px;
-  background:${({theme})=>theme.colors.accent}; color:#0b2230;
-  padding:10px 14px; border-radius:12px; font-weight:800;
-  text-decoration:none; box-shadow:${({theme})=>theme.shadows.glow};
-  transition:transform .12s ease; &:hover{ transform: translateY(-1px); }
-`;
-
-const Ghost = styled.button`
-  background: rgba(255,255,255,.06);
-  color: ${({theme})=>theme.colors.text};
-  border: 1px solid ${({theme})=>theme.colors.line};
-  padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer;
-  &:hover{ background: rgba(255,255,255,.08); }
-`;
-
-const glint = keyframes`
-  from { transform: translateX(-150%); }
-  to   { transform: translateX(150%); }
-`;
-
-const Shine = styled.div`
-  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-  &::before{
-    content:''; position:absolute; top:0; bottom:0; width:40%;
-    background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.12) 50%, rgba(255,255,255,0) 100%);
-    transform: translateX(-150%); animation: ${glint} 3.5s linear infinite;
+const TimeDisplay = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  max-width: 600px;
+  margin: 0 auto 32px;
+  
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
   }
 `;
 
-/* ============== helpers ============== */
-const pad2 = (n)=> n.toString().padStart(2,'0');
-const splitTime = (t)=>{
-  const s = Math.max(0,t);
-  const d = Math.floor(s/86400);
-  const h = Math.floor((s%86400)/3600);
-  const m = Math.floor((s%3600)/60);
-  const sec = s%60;
-  return {days:d, hrs:h, mins:m, secs:sec};
+const TimeUnit = styled.div`
+  text-align: center;
+  position: relative;
+`;
+
+const TimeValue = styled.div`
+  position: relative;
+  background: ${({ theme }) => theme.colors.card};
+  border: 2px solid ${({ theme }) => theme.colors.line};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  padding: 24px 16px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.accent}40;
+    transform: translateY(-2px);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: ${({ theme }) => theme.colors.line};
+    opacity: 0.3;
+  }
+`;
+
+const Number = styled(motion.div)`
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  color: ${({ theme }) => theme.colors.text};
+  position: relative;
+  z-index: 1;
+`;
+
+const TimeLabel = styled.div`
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: ${({ theme }) => theme.colors.subtext};
+  font-weight: 600;
+`;
+
+const ProgressRing = styled.svg`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  transform: rotate(-90deg);
+`;
+
+const ActionBar = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+`;
+
+const Button = styled.button`
+  padding: 12px 24px;
+  background: ${({ $primary, theme }) => 
+    $primary ? theme.colors.accent : 'transparent'};
+  color: ${({ $primary, theme }) => 
+    $primary ? theme.colors.bg : theme.colors.text};
+  border: 2px solid ${({ theme }) => theme.colors.accent};
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px ${({ theme }) => theme.colors.accent}40;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const Link = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: ${({ theme }) => theme.colors.accent};
+  color: ${({ theme }) => theme.colors.bg};
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadows.glow};
+  }
+`;
+
+const MetaInfo = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.colors.subtext};
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 8px;
+  }
+`;
+
+const TimezoneBadge = styled.button`
+  padding: 6px 12px;
+  background: ${({ theme }) => theme.colors.bg};
+  border: 1px solid ${({ theme }) => theme.colors.line};
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.card};
+    border-color: ${({ theme }) => theme.colors.accent}40;
+  }
+`;
+
+const MilestoneAlert = styled(motion.div)`
+  text-align: center;
+  padding: 12px 24px;
+  background: ${({ theme }) => theme.colors.accent}10;
+  border: 1px solid ${({ theme }) => theme.colors.accent}30;
+  border-radius: ${({ theme }) => theme.radii.md};
+  color: ${({ theme }) => theme.colors.accent};
+  font-weight: 600;
+  margin-bottom: 24px;
+`;
+
+/* ============== Helper Functions ============== */
+const pad2 = (n) => n.toString().padStart(2, '0');
+
+const splitTime = (totalSeconds) => {
+  const s = Math.max(0, totalSeconds);
+  return {
+    days: Math.floor(s / 86400),
+    hours: Math.floor((s % 86400) / 3600),
+    minutes: Math.floor((s % 3600) / 60),
+    seconds: s % 60
+  };
 };
-const toGCalDate = (iso)=>{
-  const d=new Date(iso);
-  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth()+1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
+
+const toGCalDate = (iso) => {
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
 };
-const makeICS = (title, startISO, endISO, desc='', loc='IIT Bombay')=>{
-  const uid=Math.random().toString(36).slice(2)+'@theblitzweek.com';
-  const dt=z=>toGCalDate(z); const now=new Date().toISOString();
+
+const makeICS = (title, startISO, endISO, desc = '', loc = 'IIT Bombay') => {
+  const uid = Math.random().toString(36).slice(2) + '@theblitzweek.com';
+  const dt = (z) => toGCalDate(z);
+  const now = new Date().toISOString();
+  
   return [
-    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ScaleUp//BlitzWeek//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH',
-    'BEGIN:VEVENT',`UID:${uid}`,`DTSTAMP:${dt(now)}`,`DTSTART:${dt(startISO)}`,`DTEND:${dt(endISO)}`,
-    `SUMMARY:${title}`,`DESCRIPTION:${desc.replace(/\n/g,'\\n')}`,`LOCATION:${loc}`,
-    'END:VEVENT','END:VCALENDAR'
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ScaleUp//BlitzWeek//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${dt(now)}`,
+    `DTSTART:${dt(startISO)}`,
+    `DTEND:${dt(endISO)}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${desc.replace(/\n/g, '\\n')}`,
+    `LOCATION:${loc}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
   ].join('\r\n');
 };
-const downloadFile=(name,content,type)=>{
-  const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+
+const downloadFile = (name, content, type) => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 };
-const useLocalStorage = (key, initial) => {
-  const [v, setV] = useState(() => {
-    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : initial; } catch { return initial; }
-  });
-  useEffect(()=>{ try{ localStorage.setItem(key, JSON.stringify(v)); } catch {} },[key,v]);
-  return [v,setV];
-};
 
-/* ============== Flip digits ============== */
-const DigitWrap = styled.div`
-  perspective: 800px; position: relative; width: 64px; height: 64px;
-`;
-const Face = styled(motion.div)`
-  position:absolute; inset:0; display:grid; place-items:center;
-  font-weight: 900; font-size: 36px; letter-spacing:.5px;
-  border-radius: 12px;
-  background: #0f3a4b;
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: inset 0 -2px 0 rgba(255,255,255,.04);
-`;
-
-function FlipDigit({ value }) {
-  const reduced = useReducedMotion();
-  return (
-    <AnimatePresence initial={false} mode="popLayout">
-      <Face
-        key={value}
-        initial={reduced ? { opacity: 0 } : { rotateX: -90, opacity: 0 }}
-        animate={reduced ? { opacity: 1 } : { rotateX: 0, opacity: 1 }}
-        exit={reduced ? { opacity: 0 } : { rotateX: 90, opacity: 0 }}
-        transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
-      >
-        {value}
-      </Face>
-    </AnimatePresence>
-  );
-}
-
-function FlipPair({ value }) {
-  const s = pad2(value);
-  return (
-    <div style={{ display: 'grid', gridAutoFlow: 'column', gap: 8 }}>
-      <DigitWrap><FlipDigit value={s[0]} /></DigitWrap>
-      <DigitWrap><FlipDigit value={s[1]} /></DigitWrap>
-    </div>
-  );
-}
-
-/* ============== Segmented halo ring ============== */
-function SegRing({ progress=0, size=96, stroke=6, segments=60 }) {
-  const r=(size-stroke)/2, c=2*Math.PI*r;
-  const dash=Math.max(0,Math.min(1,progress))*c;
-  const rest=c-dash;
-  const ticks=[...Array(segments)].map((_,i)=>{
-    const angle=(i/segments)*2*Math.PI;
-    const inner=r-8, outer=r-3;
-    const x1=size/2 + inner*Math.cos(angle);
-    const y1=size/2 + inner*Math.sin(angle);
-    const x2=size/2 + outer*Math.cos(angle);
-    const y2=size/2 + outer*Math.sin(angle);
-    return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,.12)" strokeWidth="1" />;
-  });
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position:'absolute', inset:0, margin:'auto', pointerEvents:'none' }} aria-hidden>
-      <defs>
-        <linearGradient id="halo" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%"  stopColor="#ffd34d"/><stop offset="50%" stopColor="#f5bc00"/><stop offset="100%" stopColor="#d29c00"/>
-        </linearGradient>
-        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
-          <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <g>{ticks}</g>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.10)" strokeWidth={stroke} />
-      <motion.circle
-        cx={size/2} cy={size/2} r={r} fill="none"
-        stroke="url(#halo)" strokeWidth={stroke} strokeLinecap="round"
-        filter="url(#softGlow)"
-        strokeDasharray={`${dash} ${rest}`} strokeDashoffset="0"
-        initial={false} animate={{ strokeDasharray: `${dash} ${rest}` }} transition={{ duration:.25 }}
-      />
-    </svg>
-  );
-}
-
-/* ============== Main component ============== */
+/* ============== Main Component ============== */
 export default function Countdown({
-  targetISO,
-  title='Event starts in',
-  eventTitle='IITB × ScaleUp Blitz Week',
-  durationHours=2,
+  targetISO = '2025-01-25T10:00:00+05:30',
+  eventTitle = 'ScaleUp Blitz Week',
+  durationHours = 48,
 }) {
-  const target = useMemo(()=> new Date(targetISO), [targetISO]);
-  const end    = useMemo(()=> addHours(target, durationHours), [target, durationHours]);
-
-  // optional server-time sync
-  const offsetRef = useRef(0);
+  const target = useMemo(() => new Date(targetISO), [targetISO]);
+  const end = useMemo(() => addHours(target, durationHours), [target, durationHours]);
+  
   const [synced, setSynced] = useState(false);
-  useEffect(()=>{
-    const base = import.meta.env.VITE_API_BASE || '/api';
-    fetch(base + '/stats/live-count').then(res=>{
-      const d = res.headers.get('date'); // expose 'Date' header in CORS
-      if (!d) return;
-      offsetRef.current = new Date(d).getTime() - Date.now();
-      setSynced(true);
-    }).catch(()=>{});
-  },[]);
-
-  // second-aligned tick
   const [now, setNow] = useState(new Date());
-  useEffect(()=>{
-    let t;
-    const tick = ()=>{
+  const [showLocalTime, setShowLocalTime] = useState(false);
+  const offsetRef = useRef(0);
+  const reducedMotion = useReducedMotion();
+  
+  // Sync with server time
+  useEffect(() => {
+    const syncTime = async () => {
+      try {
+        const base = import.meta.env.VITE_API_BASE || '/api';
+        const res = await fetch(`${base}/health`);
+        const serverDate = res.headers.get('date');
+        if (serverDate) {
+          offsetRef.current = new Date(serverDate).getTime() - Date.now();
+          setSynced(true);
+        }
+      } catch (error) {
+        console.error('Time sync failed:', error);
+      }
+    };
+    syncTime();
+  }, []);
+  
+  // Update time every second
+  useEffect(() => {
+    const updateTime = () => {
       const ms = Date.now() + offsetRef.current;
       setNow(new Date(ms));
-      const next = 1000 - (ms % 1000) + 4;
-      t = setTimeout(tick, next);
     };
-    tick(); return ()=> clearTimeout(t);
-  },[]);
-
-  const [showIST, setShowIST] = useLocalStorage('bw_tz_pref', true);
-  const tToStart = differenceInSeconds(target, now);
-  const tToEnd   = differenceInSeconds(end, now);
-  const phase    = tToStart > 0 ? 'pre' : tToEnd > 0 ? 'live' : 'ended';
-
-  // celebratory confetti
-  const firedRef = useRef(false);
-  useEffect(()=>{
-    if (phase==='live' && !firedRef.current){
-      firedRef.current = true;
-      confetti({ particleCount: 220, spread: 70, origin: { y: .7 } });
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const timeToStart = differenceInSeconds(target, now);
+  const timeToEnd = differenceInSeconds(end, now);
+  const phase = timeToStart > 0 ? 'pre' : timeToEnd > 0 ? 'live' : 'ended';
+  
+  const { days, hours, minutes, seconds } = splitTime(timeToStart);
+  
+  // Trigger confetti when event goes live
+  const confettiTriggered = useRef(false);
+  useEffect(() => {
+    if (phase === 'live' && !confettiTriggered.current) {
+      confettiTriggered.current = true;
+      confetti({
+        particleCount: 200,
+        spread: 100,
+        origin: { y: 0.6 }
+      });
     }
-  },[phase]);
-
-  const { days, hrs, mins, secs } = splitTime(Math.max(0, tToStart));
-  const secP = secs/60, minP = mins/60, hrP = hrs/24;
-
-  // milestone messages
-  const milestone =
-    tToStart <= 60*60 ? 'Kicking off in under an hour' :
-    tToStart <= 24*60*60 ? 'Less than 24 hours to go' : null;
-
-  const eventStartIST = useMemo(()=>{
-    const fmt = new Intl.DateTimeFormat('en-IN',{ timeZone:'Asia/Kolkata', weekday:'short', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    return fmt.format(target) + ' IST';
-  },[target]);
-  const eventStartLocal = useMemo(()=>{
-    const fmt = new Intl.DateTimeFormat(undefined,{ weekday:'short', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
-    return fmt.format(target) + ` (${tz})`;
-  },[target]);
-
-  const startISO = target.toISOString(), endISO = end.toISOString();
-  const gcalLink =
-    `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-    `&text=${encodeURIComponent(eventTitle)}` +
-    `&dates=${toGCalDate(startISO)}/${toGCalDate(endISO)}` +
-    `&details=${encodeURIComponent('Join the IIT Bombay × ScaleUp Blitz Week.')}` +
-    `&location=${encodeURIComponent('IIT Bombay')}&trp=false`;
-
-  const share = async ()=>{
-    const data = { title: eventTitle, text:`Join me at ${eventTitle}!`, url: location.origin + location.pathname + '#register' };
-    try { if (navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(data.url); alert('Link copied!'); } } catch {}
-  };
-
-  const Unit = ({ value, label, progress }) => (
-    <Box role="group" aria-label={`${value} ${label}`}>
-      <Gauge>
-        {label !== 'Days' && <SegRing progress={progress} />}
-        {/* flip pair */}
-        <FlipPair value={value} />
-      </Gauge>
-      <Label>{label}</Label>
-      <Shine />
-    </Box>
-  );
-
-  /* ============== Phase renders ============== */
-  if (phase === 'live') {
-    return (
-      <Wrap aria-live="polite">
-        <TopRow>
-          <Title><SyncDot ok={synced} /> We’re live!</Title>
-          <Meta><Chip onClick={()=> (location.hash='#register')}>Register / Check-in</Chip></Meta>
-        </TopRow>
-        <Row>
-          <Box style={{ borderColor:'rgba(245,188,0,.5)' }}>
-            <Gauge><FlipPair value={0} /></Gauge>
-            <Label>Happening</Label><Shine/>
-          </Box>
-        </Row>
-      </Wrap>
+  }, [phase]);
+  
+  // Milestone messages
+  const milestone = useMemo(() => {
+    if (timeToStart <= 60) return 'Starting in less than a minute!';
+    if (timeToStart <= 3600) return 'Starting in less than an hour!';
+    if (timeToStart <= 86400) return 'Less than 24 hours to go!';
+    return null;
+  }, [timeToStart]);
+  
+  // Format event time
+  const eventTimeDisplay = useMemo(() => {
+    if (showLocalTime) {
+      return format(target, 'EEE, MMM dd • h:mm a zzz');
+    }
+    return format(target, 'EEE, MMM dd • h:mm a') + ' IST';
+  }, [target, showLocalTime]);
+  
+  // Calendar links
+  const googleCalendarLink = useMemo(() => {
+    const startISO = target.toISOString();
+    const endISO = end.toISOString();
+    
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+      `&text=${encodeURIComponent(eventTitle)}` +
+      `&dates=${toGCalDate(startISO)}/${toGCalDate(endISO)}` +
+      `&details=${encodeURIComponent('Join us for the IIT Bombay × ScaleUp Blitz Week!')}` +
+      `&location=${encodeURIComponent('IIT Bombay')}`;
+  }, [target, end, eventTitle]);
+  
+  const handleDownloadICS = useCallback(() => {
+    const ics = makeICS(
+      eventTitle,
+      target.toISOString(),
+      end.toISOString(),
+      'Join us for the IIT Bombay × ScaleUp Blitz Week!',
+      'IIT Bombay'
     );
-  }
-
+    downloadFile('blitzweek.ics', ics, 'text/calendar;charset=utf-8');
+  }, [eventTitle, target, end]);
+  
+  const handleShare = useCallback(async () => {
+    const shareData = {
+      title: eventTitle,
+      text: `Join me at ${eventTitle}!`,
+      url: window.location.href
+    };
+    
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('Link copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+    }
+  }, [eventTitle]);
+  
+  // Render based on phase
   if (phase === 'ended') {
     return (
-      <Wrap aria-live="polite">
-        <TopRow>
-          <Title><SyncDot ok={synced} /> Event has ended</Title>
-          <Meta><Chip onClick={()=> (location.hash='#details')}>Highlights (soon)</Chip></Meta>
-        </TopRow>
-        <Row>
-          <Unit value={0} label="Days"  progress={0} />
-          <Unit value={0} label="Hours" progress={0} />
-          <Unit value={0} label="Mins"  progress={0} />
-          <Unit value={0} label="Secs"  progress={0} />
-        </Row>
-      </Wrap>
+      <Container>
+        <Header>
+          <StatusBadge $status="ended">
+            <StatusDot $status="ended" />
+            Event Concluded
+          </StatusBadge>
+          <Title>Thank You for Joining!</Title>
+          <Subtitle>Stay tuned for highlights and updates</Subtitle>
+        </Header>
+        <ActionBar>
+          <Button onClick={() => window.location.hash = '#highlights'}>
+            View Highlights
+          </Button>
+        </ActionBar>
+      </Container>
     );
   }
-
+  
+  if (phase === 'live') {
+    return (
+      <Container>
+        <Header>
+          <StatusBadge $status="live">
+            <StatusDot $status="live" $animated />
+            Event is Live!
+          </StatusBadge>
+          <Title $status="live">Join Us Now!</Title>
+          <Subtitle>The event is currently in progress</Subtitle>
+        </Header>
+        <ActionBar>
+          <Link href="#register" $primary>
+            Register & Check In
+          </Link>
+          <Button onClick={() => window.location.hash = '#livestream'}>
+            Watch Livestream
+          </Button>
+        </ActionBar>
+      </Container>
+    );
+  }
+  
   return (
-    <Wrap aria-label="Event countdown" aria-live="polite" role="timer">
-      <TopRow>
-        <Title><SyncDot ok={synced} /> {title}</Title>
-        <Meta>
-          <Chip onClick={()=> setShowIST(s=>!s)}>{showIST ? 'Show in my timezone' : 'Show in IST'}</Chip>
-          <span style={{ fontSize:12, color:'#9fb2ba' }}>{showIST ? eventStartIST : eventStartLocal}</span>
-        </Meta>
-      </TopRow>
-
-      {milestone && (
-        <div style={{
-          textAlign:'center', margin:'-6px 0 10px', fontSize:13,
-          color:'#ffd34d', opacity:.95
-        }}>
-          {milestone}
-        </div>
-      )}
-
-      <Row>
-        <Unit value={days} label="Days"  progress={0} />
-        <Unit value={hrs}  label="Hours" progress={hrP} />
-        <Unit value={mins} label="Mins"  progress={minP} />
-        <Unit value={secs} label="Secs"  progress={secP} />
-      </Row>
-
-      <Actions>
-        <CTA href={gcalLink} target="_blank" rel="noreferrer">Add to Google Calendar</CTA>
-        <Ghost onClick={()=> downloadFile('BlitzWeek.ics', makeICS(eventTitle, startISO, endISO, 'Join the IIT Bombay × ScaleUp Blitz Week.', 'IIT Bombay'), 'text/calendar;charset=utf-8')}>
+    <Container role="timer" aria-label="Event countdown">
+      <Header>
+        <StatusBadge>
+          <StatusDot $status={synced ? 'synced' : 'default'} />
+          {synced ? 'Time Synced' : 'Local Time'}
+        </StatusBadge>
+        <Title>Event Starts In</Title>
+        <Subtitle>{eventTitle}</Subtitle>
+      </Header>
+      
+      <AnimatePresence>
+        {milestone && (
+          <MilestoneAlert
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            {milestone}
+          </MilestoneAlert>
+        )}
+      </AnimatePresence>
+      
+      <TimeDisplay>
+        <TimeUnit>
+          <TimeValue>
+            <Number
+              key={days}
+              initial={reducedMotion ? false : { y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {pad2(days)}
+            </Number>
+          </TimeValue>
+          <TimeLabel>Days</TimeLabel>
+        </TimeUnit>
+        
+        <TimeUnit>
+          <TimeValue>
+            <ProgressRing viewBox="0 0 24 24">
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                opacity="0.2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray={`${(hours / 24) * 62.8} 62.8`}
+                strokeLinecap="round"
+                opacity="0.6"
+              />
+            </ProgressRing>
+            <Number
+              key={hours}
+              initial={reducedMotion ? false : { y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {pad2(hours)}
+            </Number>
+          </TimeValue>
+          <TimeLabel>Hours</TimeLabel>
+        </TimeUnit>
+        
+        <TimeUnit>
+          <TimeValue>
+            <ProgressRing viewBox="0 0 24 24">
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                opacity="0.2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray={`${(minutes / 60) * 62.8} 62.8`}
+                strokeLinecap="round"
+                opacity="0.6"
+              />
+            </ProgressRing>
+            <Number
+              key={minutes}
+              initial={reducedMotion ? false : { y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {pad2(minutes)}
+            </Number>
+          </TimeValue>
+          <TimeLabel>Minutes</TimeLabel>
+        </TimeUnit>
+        
+        <TimeUnit>
+          <TimeValue>
+            <ProgressRing viewBox="0 0 24 24">
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                opacity="0.2"
+              />
+              <motion.circle
+                cx="12"
+                cy="12"
+                r="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray={`${(seconds / 60) * 62.8} 62.8`}
+                strokeLinecap="round"
+                animate={{ strokeDasharray: `${(seconds / 60) * 62.8} 62.8` }}
+                transition={{ duration: 0.2 }}
+              />
+            </ProgressRing>
+            <Number
+              key={seconds}
+              initial={reducedMotion ? false : { y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {pad2(seconds)}
+            </Number>
+          </TimeValue>
+          <TimeLabel>Seconds</TimeLabel>
+        </TimeUnit>
+      </TimeDisplay>
+      
+      <MetaInfo>
+        <span>{eventTimeDisplay}</span>
+        <TimezoneBadge onClick={() => setShowLocalTime(!showLocalTime)}>
+          {showLocalTime ? 'Show IST' : 'Show Local Time'}
+        </TimezoneBadge>
+      </MetaInfo>
+      
+      <ActionBar>
+        <Link href={googleCalendarLink} target="_blank" rel="noopener noreferrer">
+          Add to Calendar
+        </Link>
+        <Button onClick={handleDownloadICS}>
           Download .ics
-        </Ghost>
-        <Ghost onClick={share}>Share</Ghost>
-      </Actions>
-    </Wrap>
+        </Button>
+        <Button onClick={handleShare}>
+          Share Event
+        </Button>
+      </ActionBar>
+    </Container>
   );
 }

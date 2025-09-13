@@ -1,8 +1,9 @@
+// src/components/Hero.jsx
 import React, { useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 
-/* ───────── Visual FX (subtle, classy) ───────── */
+/* ───────── Ambient FX (subtle) ───────── */
 const aurora = keyframes`
   0%   { transform: translate3d(-8%, -8%, 0) scale(1);   opacity: .75; }
   50%  { transform: translate3d( 6%,  4%, 0) scale(1.05); opacity: .95; }
@@ -22,7 +23,6 @@ const Wrap = styled.header`
     radial-gradient(1100px 460px at 8% -10%, rgba(245,188,0,.18), transparent 60%),
     linear-gradient(180deg, rgba(255,255,255,.03), transparent 34%);
 
-  /* ambient aurora */
   &::before, &::after {
     content: '';
     position: absolute;
@@ -50,45 +50,37 @@ const Wrap = styled.header`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) 1.05fr;
-  gap: 48px;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 44px;
   align-items: center;
 
-  @media (max-width: 1100px) { gap: 38px; }
-  @media (max-width: 980px)  { grid-template-columns: 1fr; gap: 28px; }
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
 `;
 
-/* ───────── Left: Logo first, bigger, perfect contrast ───────── */
-const LogoCard = styled(motion.div)`
-  /* gradient border trick */
-  position: relative;
-  --w: clamp(340px, 36vw, 560px);
-  --h: clamp(96px, 11vw, 140px);
-  border-radius: 22px;
-  padding: 1px; /* border thickness */
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.02)) padding-box,
-    linear-gradient(135deg, #ffd34d 0%, #f5bc00 45%, #d29c00 70%, rgba(73,182,255,.6) 100%) border-box;
-  box-shadow: 0 22px 60px rgba(0,0,0,.28);
-  width: var(--w);
-  height: var(--h);
-  display: grid;
-  place-items: center;
-  margin-bottom: 16px;
+/* ───────── Left: ultra-compact content ───────── */
 
-  /* white plate inside for dark logo */
+const LogoPlate = styled(motion.div)`
+  width: clamp(280px, 42vw, 520px);
+  height: clamp(84px, 12vw, 120px);
+  border-radius: 22px;
+  padding: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)) padding-box,
+    linear-gradient(135deg, #ffd34d 0%, #f5bc00 45%, #d29c00 72%, rgba(73,182,255,.6) 100%) border-box;
+  box-shadow: 0 22px 60px rgba(0,0,0,.28);
+  display: grid; place-items: center;
+  margin: 0 0 18px;
+
   & > div {
-    width: 100%;
-    height: 100%;
+    width: 100%; height: 100%;
     border-radius: 21px;
     background: #fff;
-    display: grid;
-    place-items: center;
-    position: relative;
-    overflow: hidden;
+    display: grid; place-items: center;
+    position: relative; overflow: hidden;
   }
-
-  /* subtle glossy sweep over the plate */
   & > div::after {
     content:'';
     position:absolute; inset:0;
@@ -97,44 +89,46 @@ const LogoCard = styled(motion.div)`
     animation: ${sweep} 4.4s ease-in-out infinite 1.1s;
     pointer-events:none;
   }
-
-  /* soft golden halo under the card */
-  &::after{
-    content:'';
-    position:absolute; inset:-22%;
-    border-radius: 32px;
-    background: radial-gradient(60% 55% at 50% 50%, rgba(245,188,0,.22), transparent 70%);
-    filter: blur(18px);
-    z-index:-1;
-  }
-
-  img { height: clamp(64px, 7.4vw, 110px); display:block; }
+  img { height: clamp(48px, 8.2vw, 90px); display: block; }
 `;
 
 const Heading = styled.h1`
-  font-size: clamp(40px, 5.2vw, 76px);
+  font-size: clamp(34px, 4.8vw, 64px);
   line-height: 1.04;
-  margin: 4px 0 10px;
+  margin: 0 0 10px;
   letter-spacing: -0.02em;
 `;
-
 const Accent = styled.span`
   background: linear-gradient(90deg, #ffd34d 0%, #f5bc00 55%, #d29c00 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 `;
 
-const Sub = styled.p`
-  margin: 0 0 18px;
-  font-size: clamp(16px, 2vw, 20px);
+const OneLine = styled.p`
+  margin: 6px 0 14px;
+  font-size: clamp(15px, 1.9vw, 18px);
   color: ${({theme})=> theme.colors.subtext};
 `;
 
-const MetaRow = styled.div`
-  display:flex; flex-wrap:wrap; gap:10px 12px; margin: 10px 0 24px;
+const Sash = styled.div`
+  display:flex; flex-wrap: wrap; gap: 8px 10px; align-items:center;
+  margin: 10px 0 16px;
+`;
+const Pill = styled.span`
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 8px 12px; border-radius: 999px;
+  background: rgba(245,188,0,.10);
+  border: 1px solid ${({theme})=> theme.colors.accent};
+  color: ${({theme})=> theme.colors.text}; font-weight: 800; font-size: 12px;
+  box-shadow: ${({theme})=> theme.shadows.glow};
+`;
+const Dot = styled.span`
+  display:inline-block; width:4px; height:4px; border-radius:50%;
+  background: ${({theme})=> theme.colors.subtext}; opacity:.7;
 `;
 
+const Meta = styled.div`
+  display:flex; flex-wrap: wrap; gap: 10px 12px; margin: 8px 0 18px;
+`;
 const Chip = styled.span`
   display:inline-flex; align-items:center; gap:8px;
   padding:8px 12px; border-radius:999px; font-size:12px;
@@ -143,90 +137,86 @@ const Chip = styled.span`
   color: ${({theme})=> theme.colors.text};
 `;
 
-const Ctas = styled.div` display:flex; gap:12px; flex-wrap:wrap; `;
+const Ctas = styled.div` display:flex; gap: 10px; flex-wrap: wrap; `;
 const CTA = styled.a`
   display:inline-flex; align-items:center; justify-content:center;
-  min-width: 180px; gap:8px;
+  min-width: 170px; gap:8px;
   background:${({theme})=> theme.colors.accent};
-  color:#0b2230; padding:14px 22px; border-radius:14px; font-weight:800;
+  color:#0b2230; padding:12px 18px; border-radius:14px; font-weight:900;
   box-shadow:${({theme})=> theme.shadows.glow};
   transition: transform .15s ease, background .2s ease;
   &:hover{ transform: translateY(-1px); background:${({theme})=> theme.colors.accentDark}; }
 `;
 const Ghost = styled.a`
   display:inline-flex; align-items:center; justify-content:center;
-  min-width:150px; gap:8px;
-  padding:12px 18px; border-radius:12px; font-weight:700;
+  min-width: 140px; gap:8px;
+  padding:10px 16px; border-radius:12px; font-weight:800;
   border:1px solid ${({theme})=> theme.colors.line};
   background:rgba(255,255,255,.06); color:${({theme})=> theme.colors.text};
   transition: transform .15s ease, background .2s ease;
   &:hover{ transform: translateY(-1px); background: rgba(255,255,255,.08); }
 `;
 
-/* ───────── Right: Cinematic banner frame ───────── */
+/* ───────── Right: Poster with subtle tilt ───────── */
 const Card = styled(motion.div)`
-  --r: 22px;
   background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
   border: 1px solid ${({theme})=> theme.colors.line};
-  border-radius: var(--r);
-  padding: 16px;
+  border-radius: 22px;
+  padding: 14px;
   box-shadow: ${({theme})=> theme.shadows.card};
   transform-style: preserve-3d;
 `;
-
 const BannerFrame = styled.div`
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-
-  /* thin inner stroke */
+  position: relative; border-radius: 16px; overflow: hidden;
   &::after{
     content:''; position:absolute; inset:0;
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 16px; pointer-events:none;
   }
 `;
-
 const Poster = styled.img`
   width: 100%; display:block; border-radius: 14px;
 `;
 
-/* tiny inline icons */
+/* ───────── tiny inline icons ───────── */
 const CalendarIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
     <rect x="3" y="5" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.6"/>
     <path d="M3 9h18" stroke="currentColor" strokeWidth="1.6"/>
     <path d="M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
   </svg>
 );
 const MapPinIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M12 22s7-6.3 7-12a7 7 0 1 0-14 0c0 5.7 7 12 7 12z" stroke="currentColor" strokeWidth="1.6"/>
     <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.6"/>
   </svg>
 );
 const BoltIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
   </svg>
 );
 
-export default function Hero(){
-  // Date from env (IST label)
-  const eventISO = useMemo(() => import.meta.env.VITE_EVENT_START_ISO || '2025-10-20T10:00:00+05:30', []);
+export default function Hero() {
+  const eventISO = useMemo(
+    () => import.meta.env.VITE_EVENT_START_ISO || '2025-10-20T10:00:00+05:30',
+    []
+  );
   const eventLabelIST = useMemo(() => {
     const fmt = new Intl.DateTimeFormat('en-IN', {
-      timeZone:'Asia/Kolkata', weekday:'short', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'
+      timeZone: 'Asia/Kolkata',
+      weekday: 'short', month: 'short', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
     });
     return fmt.format(new Date(eventISO)) + ' IST';
   }, [eventISO]);
 
-  // soft parallax for right banner
+  // Parallax for the poster
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rx = useTransform(y, [-60, 60], [5, -5]);
   const ry = useTransform(x, [-60, 60], [-7, 7]);
-
   const track = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     x.set(e.clientX - (r.left + r.width/2));
@@ -238,47 +228,44 @@ export default function Hero(){
     <Wrap id="top" aria-label="ScaleUp Blitz Week hero">
       <div className="container">
         <Grid>
-          {/* Left: Logo is the hero */}
+          {/* Left: minimal, bold */}
           <div>
-            <LogoCard
-              initial={{ opacity: 0, y: 18, scale: .98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: .55, ease: [0.2, 0.8, 0.2, 1] }}
-            >
-              <div>
-                <img src="/logo.png" alt="ScaleUp logo" />
-              </div>
-            </LogoCard>
+           
 
             <Heading>
               IIT Bombay × <Accent>ScaleUp</Accent> Blitz Week
             </Heading>
 
-            <MetaRow aria-label="Event quick facts">
+            <OneLine>Compete. Build. Win.</OneLine>
+
+            <Sash aria-label="Highlights">
+              <Pill>₹1,00,000+ prizes</Pill>
+              <Dot />
+              <Pill>ScaleUp merch</Pill>
+              <Dot />
+              <Pill>Internship ops</Pill>
+            </Sash>
+
+            <Meta aria-label="Event quick facts">
               <Chip><CalendarIcon /> {eventLabelIST}</Chip>
               <Chip><MapPinIcon /> IIT Bombay</Chip>
-              <Chip><BoltIcon /> Blitz &nbsp;•&nbsp; Ignite</Chip>
-            </MetaRow>
-
-            <Sub>
-              Two high-energy events, one mission: discover, learn, and build at speed.
-              Secure your spot — seats are limited.
-            </Sub>
+              <Chip><BoltIcon /> Blitz • Ignite</Chip>
+            </Meta>
 
             <Ctas>
-              <CTA href="#register" aria-label="Register now">Register Now</CTA>
-              <Ghost href="#details" aria-label="Learn more">Event Details</Ghost>
+              <CTA href="#register">Register Now</CTA>
+              <Ghost href="#details">Event Details</Ghost>
             </Ctas>
           </div>
 
-          {/* Right: Cinematic banner with subtle tilt */}
+          {/* Right: Poster */}
           <Card
             style={{ rotateX: rx, rotateY: ry }}
             onMouseMove={track}
             onMouseLeave={reset}
-            initial={{opacity:0, y:24}}
-            animate={{opacity:1, y:0}}
-            transition={{duration:.55, delay:.06}}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: .55, delay: .06 }}
             aria-hidden="true"
           >
             <BannerFrame>
