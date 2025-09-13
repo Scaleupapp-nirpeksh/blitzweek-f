@@ -1,5 +1,5 @@
 // src/components/LiveStats.jsx
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { motion, AnimatePresence, useReducedMotion, animate } from 'framer-motion';
 import api, { endpoints } from '../api/client';
@@ -129,7 +129,6 @@ const StatCard = styled(motion.div)`
   position: relative; overflow: hidden;
   transition: transform .2s ease, box-shadow .2s ease;
 
-  /* top colored bar per type */
   &::before {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -144,43 +143,28 @@ const StatCard = styled(motion.div)`
     }};
   }
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${({ theme }) => theme.shadows.cardHover};
-  }
+  &:hover { transform: translateY(-2px); box-shadow: ${({ theme }) => theme.shadows.cardHover}; }
 `;
 
-const StatContent = styled.div`
-  display: flex; flex-direction: column; gap: 8px;
-`;
-
+const StatContent = styled.div` display: flex; flex-direction: column; gap: 8px; `;
 const StatValue = styled.div`
   font-size: 2rem; font-weight: 900; line-height: 1;
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
   color: ${({ theme }) => theme.colors.text};
-
   @media (max-width: 640px) { font-size: 1.75rem; }
 `;
-
-const StatLabel = styled.div`
-  font-size: 0.875rem; color: ${({ theme }) => theme.colors.subtext}; font-weight: 600;
-`;
+const StatLabel = styled.div` font-size: 0.875rem; color: ${({ theme }) => theme.colors.subtext}; font-weight: 600; `;
 
 const StatChange = styled(motion.div)`
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.75rem; font-weight: 800; margin-top: 4px;
   padding: 4px 8px; border-radius: 999px;
-
   color: ${({ $positive, theme }) => $positive ? (theme.colors.successFg || '#77e2b4') : (theme.colors.errorFg || '#ff9b9b')};
   background: ${({ $positive, theme }) => $positive ? (theme.colors.successBg || 'rgba(93,211,158,0.12)') : (theme.colors.errorBg || 'rgba(255,107,107,0.12)')};
   border: 1px solid ${({ $positive, theme }) => $positive ? (theme.colors.successBorder || 'rgba(93,211,158,0.45)') : (theme.colors.errorBorder || 'rgba(255,107,107,0.45)')};
 `;
 
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
+const shimmer = keyframes` 0% { background-position: -200% 0; } 100% { background-position: 200% 0; }`;
 const SkeletonLoader = styled.div`
   height: ${({ $height }) => $height || '40px'};
   border-radius: 8px;
@@ -215,7 +199,7 @@ const SuccessMessage = styled(motion.div)`
   margin-bottom: 16px;
 `;
 
-/* ────────── Sparkline Component ────────── */
+/* ────────── Sparkline ────────── */
 const SparklineContainer = styled.div`
   position: absolute; bottom: 16px; right: 16px;
   opacity: 0.65; transition: opacity .2s ease;
@@ -224,21 +208,14 @@ const SparklineContainer = styled.div`
 
 const Sparkline = ({ points = [], width = 80, height = 32 }) => {
   if (points.length < 2) return null;
-
-  const min = Math.min(...points);
-  const max = Math.max(...points);
+  const min = Math.min(...points); const max = Math.max(...points);
   const range = max - min || 1;
-
-  const pathData = points
-    .map((value, i) => {
-      const x = (i / (points.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    })
-    .join(' ');
-
+  const pathData = points.map((v,i)=> {
+    const x=(i/(points.length-1))*width;
+    const y=height-((v-min)/range)*height;
+    return `${i===0?'M':'L'} ${x} ${y}`;
+  }).join(' ');
   const areaData = `${pathData} L ${width} ${height} L 0 ${height} Z`;
-
   return (
     <SparklineContainer aria-hidden>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
@@ -250,43 +227,33 @@ const Sparkline = ({ points = [], width = 80, height = 32 }) => {
         </defs>
         <path d={areaData} fill="url(#sparkGradient)" />
         <path d={pathData} fill="none" stroke="#f5bc00" strokeWidth="2" />
-        <circle
-          cx={width}
-          cy={height - ((points[points.length - 1] - min) / range) * height}
-          r="3"
-          fill="#f5bc00"
-        />
+        <circle cx={width} cy={height - ((points[points.length - 1] - min) / range) * height} r="3" fill="#f5bc00" />
       </svg>
     </SparklineContainer>
   );
 };
 
-/* ────────── Helper Functions ────────── */
+/* ────────── Helpers ────────── */
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) return 'Never';
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 5) return 'Just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+  const s = Math.floor((Date.now() - timestamp) / 1000);
+  if (s < 5) return 'Just now';
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 };
 
-/* ────────── Animated Counter ────────── */
+/* Animated Counter */
 function AnimatedCount({ value, format = true }) {
   const reducedMotion = useReducedMotion();
   const [displayValue, setDisplayValue] = useState(value);
   const previousValue = useRef(value);
 
-  useEffect(() => {
-    if (reducedMotion || value === previousValue.current) {
-      setDisplayValue(value);
-      return;
-    }
+  React.useEffect(() => {
+    if (reducedMotion || value === previousValue.current) { setDisplayValue(value); return; }
     const controls = animate(previousValue.current, value, {
-      duration: 0.5,
-      ease: 'easeOut',
-      onUpdate: (v) => setDisplayValue(Math.round(v)),
+      duration: 0.5, ease: 'easeOut', onUpdate: (v) => setDisplayValue(Math.round(v)),
     });
     previousValue.current = value;
     return () => controls.stop();
@@ -296,20 +263,20 @@ function AnimatedCount({ value, format = true }) {
   return <span>{formatted}</span>;
 }
 
-/* ────────── Main Component ────────── */
+/* ────────── Main Component (Manual Refresh Only) ────────── */
 export default function LiveStats() {
   const [stats, setStats] = useState({ total: 0, blitz: 0, ignite: 0, both: 0 });
   const [previousStats, setPreviousStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);   // starts idle
   const [error, setError] = useState(null);
   const [synced, setSynced] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [history, setHistory] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
+      setLoading(true);
       setError(null);
       const response = await api.get(endpoints.statsLive);
 
@@ -339,14 +306,6 @@ export default function LiveStats() {
     }
   }, [stats]);
 
-  useEffect(() => {
-    fetchStats();
-    if (autoRefresh) {
-      const interval = setInterval(fetchStats, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh, fetchStats]);
-
   const deltas = useMemo(() => {
     if (!previousStats) return {};
     return {
@@ -364,17 +323,12 @@ export default function LiveStats() {
     { key: 'both',   label: 'Both Events',         type: 'both' },
   ];
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    await fetchStats();
-  };
-
   const getStatusIndicator = () => {
     if (loading) return 'loading';
     if (error)   return 'error';
     if (synced)  return 'synced';
     return 'default';
-    };
+  };
 
   return (
     <Container aria-live="polite">
@@ -389,17 +343,8 @@ export default function LiveStats() {
         </TitleGroup>
 
         <Controls>
-          <UpdateInfo>
-            <span>Updated {formatRelativeTime(lastUpdated)}</span>
-          </UpdateInfo>
-          <Button
-            $variant={autoRefresh ? 'default' : 'primary'}
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            aria-pressed={autoRefresh}
-          >
-            {autoRefresh ? '⏸ Pause' : '▶ Resume'}
-          </Button>
-          <Button onClick={handleRefresh} disabled={loading} aria-label="Refresh statistics">
+          <UpdateInfo>Updated {formatRelativeTime(lastUpdated)}</UpdateInfo>
+          <Button onClick={fetchStats} $variant="primary" disabled={loading}>
             {loading ? '⟳ Loading…' : '⟳ Refresh'}
           </Button>
         </Controls>
@@ -420,7 +365,7 @@ export default function LiveStats() {
       {error && (
         <ErrorMessage role="alert">
           <span>⚠ {error}</span>
-          <Button onClick={handleRefresh} $variant="primary">Try Again</Button>
+          <Button onClick={fetchStats} $variant="primary">Try Again</Button>
         </ErrorMessage>
       )}
 
@@ -439,6 +384,7 @@ export default function LiveStats() {
               animate={{ scale: delta > 0 ? [1, 1.02, 1] : 1 }}
               transition={{ duration: 0.25 }}
             >
+              {/* When idle before first refresh, show the numbers plainly (no skeleton) */}
               {loading ? (
                 <StatContent>
                   <SkeletonLoader $height="36px" />
