@@ -458,19 +458,7 @@ export default function EventDetails() {
           )}
         </AnimatePresence>
 
-        <CTASection>
-          <p style={{ fontSize: '1.05rem', marginBottom: 16, color: 'inherit', opacity:.9 }}>
-            Don’t miss your chance to learn, compete, and stand out.
-          </p>
-          <CTAButton
-            href="#register?track=both"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            aria-label="Register for both events"
-          >
-            Register for Both Events <Icons.Trophy />
-          </CTAButton>
-        </CTASection>
+
       </Container>
     </Section>
   );
