@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 // Use the environment variable or fallback to localhost
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
+const API_BASE = import.meta.env.VITE_API_BASE
 
 console.log('API Base URL:', API_BASE) // Debug log
 
