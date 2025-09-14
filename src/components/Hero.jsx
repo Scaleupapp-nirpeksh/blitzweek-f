@@ -243,7 +243,7 @@ export default function Hero() {
               <Dot />
               <Pill>ScaleUp merch</Pill>
               <Dot />
-              <Pill>Internship ops</Pill>
+              <Pill>Internship opportunity</Pill>
             </Sash>
 
             <Meta aria-label="Event quick facts">
