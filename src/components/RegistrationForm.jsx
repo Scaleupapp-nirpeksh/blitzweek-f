@@ -221,7 +221,7 @@ const branches = [
   'Electrical Engineering','Engineering Physics','Environmental Science and Engineering','Mechanical Engineering',
   'Metallurgical Engineering and Materials Science','Biosciences and Bioengineering','Chemistry','Earth Sciences',
   'Mathematics','Physics','Climate Studies','Educational Technology','Energy Science and Engineering',
-  'Systems and Control Engineering','Technology and Development','Other'
+  'Systems and Control Engineering','Technology and Development','Economics','Other'
 ];
 const years = ['1st Year','2nd Year','3rd Year','4th Year','5th Year','MTech','PhD','Other'];
 
