@@ -462,14 +462,6 @@ export default function Countdown({
           <Title $status="live">Join Us Now!</Title>
           <Subtitle>The event is currently in progress</Subtitle>
         </Header>
-        <ActionBar>
-          <Link href="#register" $primary>
-            Register & Check In
-          </Link>
-          <Button onClick={() => window.location.hash = '#livestream'}>
-            Watch Livestream
-          </Button>
-        </ActionBar>
       </Container>
     );
   }

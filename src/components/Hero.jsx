@@ -200,7 +200,7 @@ const BoltIcon = () => (
 
 export default function Hero() {
   const eventISO = useMemo(
-    () => import.meta.env.VITE_EVENT_START_ISO || '2025-10-20T10:00:00+05:30',
+    () => '2025-09-27T13:00:00+05:30',
     []
   );
   const eventLabelIST = useMemo(() => {

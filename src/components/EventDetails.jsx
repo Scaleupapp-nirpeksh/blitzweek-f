@@ -227,6 +227,18 @@ const PrizeCard = styled.div`
 const PrizeValue = styled.div` font-size: 20px; font-weight: 800; color: ${({theme})=> theme.colors.accent}; `;
 const PrizeLabel = styled.div` font-size: 12px; color: ${({theme})=> theme.colors.subtext}; `;
 
+const RefreshmentNote = styled.div`
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(245,188,0,.08);
+  border: 1px solid ${({theme})=> theme.colors.accent}40;
+  border-radius: ${({theme})=> theme.radii.md};
+  text-align: center;
+  font-size: 13px;
+  color: ${({theme})=> theme.colors.text};
+  font-weight: 600;
+`;
+
 const CTASection = styled.div`
   text-align: center; margin-top: 36px; padding-top: 28px;
   border-top: 1px solid ${({ theme }) => theme.colors.line};
@@ -267,12 +279,12 @@ const Icons = {
 
 /* ───────────────── Data ───────────────── */
 const blitzEvent = {
-  day: 'Day 1', date: 'September 27', time: '5:30 PM',
+  day: 'Day 1', date: 'September 27', time: '1:00 PM',
   title: 'ScaleUp Blitz', subtitle: 'Speed Learning Tournament', location: 'IIT Bombay (Hall TBA)',
   timeline: [
-    { time: '5:30 PM', title: 'IIT Bombay Quiz', desc: '10 MCQs • 15 seconds each • Top 5 win ScaleUp merchandise' },
-    { time: '5:45 PM', title: 'Interactive Session', desc: '45-minute discussion with ScaleUp founders' },
-    { time: '6:30 PM', title: 'Tech Quiz Championship', desc: 'AI/ML, coding & architecture • 10 MCQs • ₹50,000 prize pool for top 20' },
+    { time: '1:00 PM', title: 'IIT Bombay Quiz', desc: '10 MCQs • 15 seconds each • Top 5 win ScaleUp merchandise' },
+    { time: '1:15 PM', title: 'Interactive Session', desc: '45-minute discussion with ScaleUp founders' },
+    { time: '2:00 PM', title: 'Tech Quiz Championship', desc: 'AI/ML, coding & architecture • 10 MCQs • ₹50,000 prize pool for top 20' },
   ],
   prizes: [
     { value: '₹50,000', label: 'Total Prize Pool' },
@@ -282,12 +294,12 @@ const blitzEvent = {
 };
 
 const igniteEvent = {
-  day: 'Day 2', date: 'September 28', time: '11:00 AM – 5:00 PM',
-  title: 'ScaleUp Ignite', subtitle: '6-Hour Virtual Hackathon', location: 'Virtual',
+  day: 'Day 2', date: 'September 28', time: '11:30 AM – 6:30 PM',
+  title: 'ScaleUp Ignite', subtitle: '4-Hour In-Person Hackathon', location: 'IIT Bombay',
   timeline: [
-    { time: '11:00 AM', title: 'Hackathon Begins', desc: 'Theme revealed • Individual participation • Build your solution' },
-    { time: '5:00 PM',  title: 'Submission Deadline', desc: 'Submit your project for evaluation' },
-    { time: '5:30 PM',  title: 'Demo Session', desc: 'Top 10 participants present 5-minute demos' },
+    { time: '11:30 AM', title: 'Hackathon Begins', desc: 'Theme revealed • Individual participation • Build your solution' },
+    { time: '4:00 PM',  title: 'Submission Deadline', desc: 'Submit your project for evaluation' },
+    { time: '5:00 PM',  title: 'Demo Session', desc: 'Top 10 participants present 5-minute demos' },
     { time: '6:30 PM',  title: 'Results & Opportunities', desc: 'Winners announced • Top 5 get internship interviews' },
   ],
   prizes: [
@@ -356,11 +368,11 @@ export default function EventDetails() {
                       <DayBadge>Day 1 — Sept 27</DayBadge>
                       <EventTitle>ScaleUp Blitz</EventTitle>
                       <EventMeta>
-                        <Meta><Icons.Clock/> 5:30 PM onwards</Meta>
+                        <Meta><Icons.Clock/> 1:00 PM onwards</Meta>
                         <Meta><Icons.Location/> IIT Bombay Campus</Meta>
                         <Meta><Icons.Trophy/> ₹50,000 Prizes</Meta>
                       </EventMeta>
-                      <Lead>Fast-paced competition with two quiz rounds, an interactive founders’ session, and instant wins.</Lead>
+                      <Lead>Fast-paced competition with two quiz rounds, an interactive founders' session, and instant wins.</Lead>
                     </EventInfo>
                   </EventHeader>
                 </Card>
@@ -371,11 +383,11 @@ export default function EventDetails() {
                       <DayBadge>Day 2 — Sept 28</DayBadge>
                       <EventTitle>ScaleUp Ignite</EventTitle>
                       <EventMeta>
-                        <Meta><Icons.Clock/> 11:00 AM – 5:00 PM</Meta>
-                        <Meta><Icons.Location/> Virtual Event</Meta>
+                        <Meta><Icons.Clock/> 11:30 AM – 6:30 PM</Meta>
+                        <Meta><Icons.Location/> IIT Bombay Campus</Meta>
                         <Meta><Icons.Trophy/> ₹50,000 + Internships</Meta>
                       </EventMeta>
-                      <Lead>Build something real in six hours and demo it. Top performers get interview opportunities.</Lead>
+                      <Lead>Build something real in four hours and demo it. Top performers get interview opportunities. Refreshments on the house!</Lead>
                     </EventInfo>
                   </EventHeader>
                 </Card>
@@ -453,6 +465,10 @@ export default function EventDetails() {
                     </PrizeCard>
                   ))}
                 </PrizeGrid>
+
+                <RefreshmentNote>
+                  🍕 Refreshments will be ON THE HOUSE throughout the event!
+                </RefreshmentNote>
               </Card>
             </motion.div>
           )}
