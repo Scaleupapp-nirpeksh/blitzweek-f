@@ -497,7 +497,7 @@ export default function RegistrationForm(){
             </Field>
 
             <Field>
-              <Label htmlFor="phone">Phone (optional)</Label>
+              <Label htmlFor="phone">Phone</Label>
               <InputWrap>
                 <Input
                   id="phone"
