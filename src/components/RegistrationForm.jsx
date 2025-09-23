@@ -12,7 +12,7 @@ import confetti from 'canvas-confetti';
 const schema = z.object({
   name: z.string().min(2, 'Enter your full name').max(100).regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces'),
   ldapId: z.string().email('Enter a valid email').regex(/@iitb\.ac\.in$/i, 'Use your IITB email'),
-  rollNumber: z.string().regex(/^[0-9]{2}[A-Z][0-9]{4,5}$/i, 'e.g., 21B1234'),
+  rollNumber: z.string().min(1, 'Roll number is required'),
   branch: z.string().min(1, 'Select your branch'),
   year: z.string().min(1, 'Select your year'),
   phoneNumber: z.string().optional().refine(v => !v || /^[6-9]\d{9}$/.test(v), { message: 'Enter 10-digit Indian mobile' }),
@@ -285,7 +285,7 @@ export default function RegistrationForm(){
   const requiredFilled = [
     Boolean(name && name.trim().length >= 2 && /^[a-zA-Z\s]+$/.test(name.trim())),
     Boolean(ldapId && /@iitb\.ac\.in$/i.test(ldapId) && /^\S+@\S+\.\S+$/.test(ldapId)),
-    Boolean(rollNumber && /^[0-9]{2}[A-Z][0-9]{4,5}$/i.test(rollNumber)),
+    Boolean(rollNumber && rollNumber.trim().length > 0),
     Boolean(branch),
     Boolean(year),
     Boolean(interested)
@@ -316,7 +316,7 @@ export default function RegistrationForm(){
     };
     const t = setTimeout(()=>{
       if(ldapId && /@iitb\.ac\.in$/i.test(ldapId)) check(ldapId, 'ldapId');
-      else if(rollNumber && /^[0-9]{2}[A-Z][0-9]{4,5}$/i.test(rollNumber)) check(rollNumber, 'rollNumber');
+      else if(rollNumber && rollNumber.trim().length > 0) check(rollNumber, 'rollNumber');
     }, 500);
     return ()=> { abort = true; clearTimeout(t); };
   }, [ldapId, rollNumber, setError, clearErrors]);
@@ -391,7 +391,7 @@ export default function RegistrationForm(){
               </Success>
             ) : (
               <Banner key="hint" {...appear}>
-                Use your IITB LDAP email and official roll number. If you’ve already registered, we’ll flag it automatically.
+                Use your IITB LDAP email and official roll number. If you've already registered, we'll flag it automatically.
               </Banner>
             )}
           </AnimatePresence>
@@ -455,8 +455,7 @@ export default function RegistrationForm(){
               <InputWrap>
                 <Input
                   id="roll"
-                  placeholder="21B1234"
-                  maxLength={8}
+                  placeholder="Enter your roll number"
                   {...register('rollNumber')}
                   onBlur={normalizeRoll}
                   aria-invalid={!!errors.rollNumber}
@@ -466,7 +465,7 @@ export default function RegistrationForm(){
                   {showSpin('rollNumber') ? <Spinner /> : showOk('rollNumber') ? '✓' : null}
                 </Adorner>
               </InputWrap>
-              <Help role="alert">{errors.rollNumber?.message || 'Format: YY[A-Z]NNNN (e.g., 21B1234)'}</Help>
+              <Help role="alert">{errors.rollNumber?.message}</Help>
             </Field>
 
             <Field>
@@ -551,7 +550,7 @@ export default function RegistrationForm(){
           </Row>
 
           <FinePrint>
-            We’ll email event details to your LDAP. By registering, you agree to be contacted about Blitz Week logistics.
+            We'll email event details to your LDAP. By registering, you agree to be contacted about Blitz Week logistics.
           </FinePrint>
         </Card>
       </div>
