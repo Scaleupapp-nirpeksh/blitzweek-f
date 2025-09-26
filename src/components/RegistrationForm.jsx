@@ -10,12 +10,12 @@ import confetti from 'canvas-confetti';
 
 /* ───────── schema ───────── */
 const schema = z.object({
-  name: z.string().min(2, 'Enter your full name').max(100).regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces'),
+  name: z.string().min(1, 'Name is required'),
   ldapId: z.string().email('Enter a valid email').regex(/@iitb\.ac\.in$/i, 'Use your IITB email'),
   rollNumber: z.string().min(1, 'Roll number is required'),
   branch: z.string().min(1, 'Select your branch'),
   year: z.string().min(1, 'Select your year'),
-  phoneNumber: z.string().optional().refine(v => !v || /^[6-9]\d{9}$/.test(v), { message: 'Enter 10-digit Indian mobile' }),
+  phoneNumber: z.string().min(1, 'Phone number is required'),
   interestedEvents: z.enum(['ScaleUp Blitz', 'ScaleUp Ignite', 'Both']),
 });
 
@@ -279,18 +279,20 @@ export default function RegistrationForm(){
   const rollNumber = watch('rollNumber');
   const branch = watch('branch');
   const year = watch('year');
+  const phoneNumber = watch('phoneNumber');
   const interested = watch('interestedEvents');
 
-  // completion % for progress bar (phone optional)
+  // completion % for progress bar - now including phone as required
   const requiredFilled = [
-    Boolean(name && name.trim().length >= 2 && /^[a-zA-Z\s]+$/.test(name.trim())),
+    Boolean(name && name.trim().length > 0),
     Boolean(ldapId && /@iitb\.ac\.in$/i.test(ldapId) && /^\S+@\S+\.\S+$/.test(ldapId)),
     Boolean(rollNumber && rollNumber.trim().length > 0),
     Boolean(branch),
     Boolean(year),
+    Boolean(phoneNumber && phoneNumber.trim().length > 0),
     Boolean(interested)
   ].filter(Boolean).length;
-  const pct = (requiredFilled / 6) * 100;
+  const pct = (requiredFilled / 7) * 100;
 
   // normalize inputs
   const normalizeEmail = (e) => { e.target.value = e.target.value.trim().toLowerCase(); };
@@ -331,6 +333,7 @@ export default function RegistrationForm(){
         ldapId: values.ldapId.trim().toLowerCase(),
         rollNumber: values.rollNumber.trim().toUpperCase(),
         interestedEvents: values.interestedEvents,
+        phoneNumber: values.phoneNumber?.trim() || '',
       };
       const res = await api.post(endpoints.register, payload);
       if(res.data?.success){
@@ -357,6 +360,7 @@ export default function RegistrationForm(){
     if (field === 'rollNumber') return !!rollNumber && !errors.rollNumber && !checking && !dup;
     if (field === 'branch') return !!branch && !errors.branch;
     if (field === 'year') return !!year && !errors.year;
+    if (field === 'phoneNumber') return !!phoneNumber && !errors.phoneNumber;
     return false;
   };
 
@@ -501,14 +505,14 @@ export default function RegistrationForm(){
               <InputWrap>
                 <Input
                   id="phone"
-                  placeholder="10-digit mobile"
+                  placeholder="Your contact number"
                   {...register('phoneNumber')}
-                  inputMode="numeric" pattern="[0-9]*" maxLength={10}
+                  inputMode="numeric" pattern="[0-9]*"
                   aria-invalid={!!errors.phoneNumber}
                   $invalid={!!errors.phoneNumber}
                 />
                 <Adorner aria-hidden>
-                  {errors.phoneNumber ? '!' : null}
+                  {showSpin('phoneNumber') ? <Spinner /> : showOk('phoneNumber') ? '✓' : errors.phoneNumber ? '!' : null}
                 </Adorner>
               </InputWrap>
               <Help role="alert">{errors.phoneNumber?.message}</Help>
