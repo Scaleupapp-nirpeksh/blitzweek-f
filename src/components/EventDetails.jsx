@@ -280,7 +280,7 @@ const Icons = {
 /* ───────────────── Data ───────────────── */
 const blitzEvent = {
   day: 'Day 1', date: 'September 27', time: '1:00 PM',
-  title: 'ScaleUp Blitz', subtitle: 'Speed Learning Tournament', location: 'IIT Bombay (Hall TBA)',
+  title: 'ScaleUp Blitz', subtitle: 'Speed Learning Tournament', location: 'LA001, IIT Bombay',
   timeline: [
     { time: '1:00 PM', title: 'IIT Bombay Quiz', desc: '10 MCQs • 15 seconds each • Top 5 win ScaleUp merchandise' },
     { time: '1:15 PM', title: 'Interactive Session', desc: '45-minute discussion with ScaleUp founders' },
@@ -369,7 +369,7 @@ export default function EventDetails() {
                       <EventTitle>ScaleUp Blitz</EventTitle>
                       <EventMeta>
                         <Meta><Icons.Clock/> 1:00 PM onwards</Meta>
-                        <Meta><Icons.Location/> IIT Bombay Campus</Meta>
+                        <Meta><Icons.Location/> LA001, IIT Bombay</Meta>
                         <Meta><Icons.Trophy/> ₹50,000 Prizes</Meta>
                       </EventMeta>
                       <Lead>Fast-paced competition with two quiz rounds, an interactive founders' session, and instant wins.</Lead>
